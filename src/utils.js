@@ -349,6 +349,61 @@ export function removeFoodFromList(food, filePath = FOOD_LIST_PATH) {
 }
 
 /**
+ * Remove a food item from the food list by index
+ * @param {number} index - The 1-based index of the food item to remove
+ * @param {string} filePath - Path to the food list file
+ * @returns {{success: boolean, message: string}} Result object
+ */
+export function removeFoodByIndex(index, filePath = FOOD_LIST_PATH) {
+  try {
+    const existingFoods = loadFoodList(filePath);
+
+    if (existingFoods.length === 0) {
+      return { success: false, message: "Food list is empty" };
+    }
+
+    // Sort alphabetically to match the display order in /foodlist
+    existingFoods.sort();
+
+    // Convert 1-based index to 0-based
+    const zeroIndex = index - 1;
+
+    if (zeroIndex < 0 || zeroIndex >= existingFoods.length) {
+      return {
+        success: false,
+        message: `Invalid index. Please use a number between 1 and ${existingFoods.length}`,
+      };
+    }
+
+    const removedFood = existingFoods[zeroIndex];
+
+    // Remove the food at the index
+    existingFoods.splice(zeroIndex, 1);
+
+    // Write back to file
+    ensureDirectoryExists(filePath);
+    writeFileSync(filePath, existingFoods.join("\n"), "utf-8");
+
+    // If we've removed the current cached food, clear the cache
+    const cache = loadFoodCache();
+    if (cache.food && cache.food.toLowerCase() === removedFood.toLowerCase()) {
+      clearFoodCache();
+      logger.info("Cleared food cache as removed food was currently cached");
+    }
+
+    logger.info(`Removed food '${removedFood}' from the list (index ${index})`);
+
+    return {
+      success: true,
+      message: `Removed '${removedFood}' from the food list`,
+    };
+  } catch (error) {
+    logger.error(`Error removing food from list: ${error.message}`);
+    return { success: false, message: `Error removing food: ${error.message}` };
+  }
+}
+
+/**
  * Get all foods from the food list with optional formatting
  * @param {string} filePath - Path to the food list file
  * @param {boolean} numbered - If true, return a numbered list

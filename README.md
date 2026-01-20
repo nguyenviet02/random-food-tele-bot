@@ -60,16 +60,16 @@ npm run dev
 
 ### Available Commands
 
-| Command              | Description                                 |
-| -------------------- | ------------------------------------------- |
-| `/start`             | Get information about available commands    |
-| `/help`              | Show all available commands                 |
-| `/food`              | Get a random food suggestion                |
-| `/newfood`           | Force a new food suggestion (ignores cache) |
-| `/clearfood`         | Clear current food suggestion               |
-| `/addfood <name>`    | Add a new food to the list                  |
-| `/removefood <name>` | Remove a food from the list                 |
-| `/foodlist`          | Show all foods in the list                  |
+| Command               | Description                                 |
+| --------------------- | ------------------------------------------- |
+| `/start`              | Get information about available commands    |
+| `/help`               | Show all available commands                 |
+| `/food`               | Get a random food suggestion                |
+| `/newfood`            | Force a new food suggestion (ignores cache) |
+| `/clearfood`          | Clear current food suggestion               |
+| `/addfood <name>`     | Add a new food to the list                  |
+| `/removefood <index>` | Remove a food from the list by index        |
+| `/foodlist`           | Show all foods in the list                  |
 
 ### Track Debts
 

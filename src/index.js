@@ -5,7 +5,7 @@ import {
   getRandomFood,
   clearFoodCache,
   addFoodToList,
-  removeFoodFromList,
+  removeFoodByIndex,
   getAllFoods,
   addDebt,
   isRestrictedUser,
@@ -232,17 +232,27 @@ bot.onText(/\/removefood(?:\s+(.+))?/, async (msg, match) => {
     if (isRestricted) return;
   }
 
-  const foodItem = match[1];
+  const indexStr = match[1];
 
-  if (!foodItem) {
+  if (!indexStr) {
     await bot.sendMessage(
       chatId,
-      'Please specify a food to remove, e.g. /removefood "Fried Rice"',
+      "Please specify the index of the food to remove, e.g. /removefood 5\nUse /foodlist to see the numbered list.",
     );
     return;
   }
 
-  const { success, message } = removeFoodFromList(foodItem, FOOD_LIST_PATH);
+  const index = parseInt(indexStr.trim(), 10);
+
+  if (isNaN(index)) {
+    await bot.sendMessage(
+      chatId,
+      "Please provide a valid number, e.g. /removefood 5",
+    );
+    return;
+  }
+
+  const { success, message } = removeFoodByIndex(index, FOOD_LIST_PATH);
   await bot.sendMessage(chatId, message);
 });
 
