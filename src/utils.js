@@ -11,7 +11,6 @@ import {
   FOOD_LIST_PATH,
   FOOD_CACHE_PATH,
   CACHE_DURATION_MS,
-  RESTRICTED_USERS,
   ADMIN_DB_PATH,
   RESTRICTED_USERS_DB_PATH,
   DEFAULT_ADMINS,
@@ -542,18 +541,18 @@ export async function checkAdminPermission(bot, chatId, user) {
  */
 export function loadRestrictedUsersFromDB(filePath = RESTRICTED_USERS_DB_PATH) {
   if (!existsSync(filePath)) {
-    // Initialize with legacy restricted users from config
-    const initialData = [...RESTRICTED_USERS];
+    const initialData = [];
     saveRestrictedUsersToDB(initialData, filePath);
     return initialData;
   }
 
   try {
     const data = readFileSync(filePath, "utf-8");
-    return JSON.parse(data);
+    const list = JSON.parse(data);
+    return Array.isArray(list) ? list : [];
   } catch (error) {
     logger.error(`Error loading restricted users: ${error.message}`);
-    return [...RESTRICTED_USERS];
+    return [];
   }
 }
 
