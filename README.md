@@ -65,9 +65,9 @@ npm run dev
 | `/help`               | Show all available commands                 |
 | `/food`               | Get a random food suggestion                |
 | `/newfood`            | Force a new food suggestion (ignores cache) |
-| `/clearfood`          | Clear current food suggestion               |
-| `/addfood <name>`     | Add a new food to the list                  |
-| `/removefood <index>` | Remove a food from the list by index        |
+| `/clearfood`*         | Clear current food suggestion               |
+| `/addfood <name>`*    | Add a new food to the list                  |
+| `/removefood <index>`*| Remove a food from the list by index        |
 | `/foodlist`           | Show all foods in the list                  |
 | `/addadmin @user`*    | Add a new admin (admin only)                |
 | `/removeadmin @user`* | Remove an admin (admin only)                |
@@ -90,7 +90,8 @@ bot-nodejs/
 └── src/
     ├── index.js          # Main entry point with command handlers
     ├── config.js         # Configuration (paths, token, constants)
-    └── utils.js          # Utility functions (food, debt, caching)
+    ├── adminCommands.js  # Admin-only commands (food mgmt + admin/restrict)
+    └── utils.js          # Utility functions (food, admin, restrictions, caching)
 ```
 
 ## Configuration
@@ -103,6 +104,7 @@ bot-nodejs/
   ```
 - Admin-only commands: `/addadmin`, `/removeadmin`, `/listadmins`, `/restrict`, `/unrestrict`, `/listrestricted`.
 - Add yourself to the array to bootstrap the first admin.
+- Defaults: values in `DEFAULT_ADMINS` (see `src/config.js`) are always included even if the file is empty; file contents merge with defaults.
 
 ### Restricted Users
 
@@ -111,6 +113,7 @@ bot-nodejs/
   ["username1", "username2"]
   ```
 - Restricted users will receive a message asking them to purchase VIP when trying to use any command.
+- Mutual exclusion: promoting to admin removes the user from restricted; restricting a user removes them from admins.
 
 ### Cache Duration
 
