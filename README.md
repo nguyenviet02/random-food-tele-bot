@@ -1,11 +1,10 @@
-# Telegram Food and Debt Tracker Bot (Node.js)
+# Telegram Food Bot (Node.js)
 
-A Telegram bot that suggests random foods and tracks debts between users in a group chat. This is the Node.js version of the original Python bot.
+A Telegram bot that suggests random foods for your group chat. This is the Node.js version of the original Python bot, simplified to focus on food features only.
 
 ## Features
 
 - 🍽️ **Random Food Suggestions** - Get a random food from the list with the `/food` command
-- 💰 **Debt Tracking** - Track debt when users are tagged with amounts (e.g., `@username 100`)
 - 📝 **Food List Management** - Add, remove, and view foods in the list
 - 🔒 **User Restrictions** - Restrict certain users from using bot commands
 - ⏰ **Caching** - Same food suggestion is returned for 12 hours
@@ -70,16 +69,14 @@ npm run dev
 | `/addfood <name>`     | Add a new food to the list                  |
 | `/removefood <index>` | Remove a food from the list by index        |
 | `/foodlist`           | Show all foods in the list                  |
+| `/addadmin @user`*    | Add a new admin (admin only)                |
+| `/removeadmin @user`* | Remove an admin (admin only)                |
+| `/listadmins`*        | List all admins (admin only)                |
+| `/restrict @user`*    | Restrict a user (admin only)                |
+| `/unrestrict @user`*  | Unrestrict a user (admin only)              |
+| `/listrestricted`*    | List restricted users (admin only)          |
 
-### Track Debts
-
-To add debt to a user, mention them with an amount:
-
-```
-@username 100
-```
-
-The bot will automatically track this and add it to the user's total debt.
+`*` Admin commands are shown only to admins in `/start` and `/help`.
 
 ## Project Structure
 
@@ -88,7 +85,6 @@ bot-nodejs/
 ├── package.json          # Node.js dependencies and scripts
 ├── README.md             # This file
 ├── data/
-│   ├── debts.json        # Debt database (auto-generated)
 │   ├── foods.txt         # Food list
 │   └── food_cache.json   # Food cache (auto-generated)
 └── src/
@@ -99,15 +95,22 @@ bot-nodejs/
 
 ## Configuration
 
+### Admins
+
+- Admins are stored in `data/admins.json` as an array of Telegram usernames (no `@` needed):
+  ```json
+  ["admin1", "admin2"]
+  ```
+- Admin-only commands: `/addadmin`, `/removeadmin`, `/listadmins`, `/restrict`, `/unrestrict`, `/listrestricted`.
+- Add yourself to the array to bootstrap the first admin.
+
 ### Restricted Users
 
-To restrict certain users from using bot commands, edit the `RESTRICTED_USERS` array in `src/config.js`:
-
-```javascript
-export const RESTRICTED_USERS = ["username1", "username2"];
-```
-
-Restricted users will receive a message asking them to purchase VIP when trying to use any command.
+- Restricted users are stored in `data/restricted_users.json` as an array of usernames:
+  ```json
+  ["username1", "username2"]
+  ```
+- Restricted users will receive a message asking them to purchase VIP when trying to use any command.
 
 ### Cache Duration
 
@@ -116,16 +119,6 @@ The default cache duration for food suggestions is 12 hours. To change this, mod
 ```javascript
 export const CACHE_DURATION_MS = 12 * 60 * 60 * 1000; // milliseconds
 ```
-
-## Differences from Python Version
-
-| Aspect          | Python                     | Node.js               |
-| --------------- | -------------------------- | --------------------- |
-| Library         | python-telegram-bot        | node-telegram-bot-api |
-| Async           | async/await                | async/await           |
-| File Operations | sync with context managers | sync with fs module   |
-| Package Manager | pip                        | npm                   |
-| Entry Point     | `python main.py`           | `node src/index.js`   |
 
 ## Requirements
 

@@ -7,13 +7,17 @@ import {
   addFoodToList,
   removeFoodByIndex,
   getAllFoods,
-  addDebt,
   isRestrictedUser,
   checkCommandRestriction,
+  isAdmin,
 } from "./utils.js";
+import { registerAdminCommands } from "./adminCommands.js";
 
 // Create bot instance with polling
 const bot = new TelegramBot(TOKEN, { polling: true });
+
+// Register admin commands
+registerAdminCommands(bot);
 
 logger.info("Bot started and listening for messages...");
 
@@ -40,20 +44,33 @@ bot.onText(/\/start/, async (msg) => {
   }
 
   const firstName = user.first_name || "User";
+  const userIsAdmin = isAdmin(user.username);
 
-  await bot.sendMessage(
-    chatId,
-    `Hi ${firstName}! I am your Food and Debt Tracker Bot.\n\n` +
-      `Commands:\n` +
-      `/food - Get a random food suggestion\n` +
-      `/newfood - Force a new food suggestion\n` +
-      `/clearfood - Clear current food suggestion\n` +
-      `/addfood - Add a new food to the list\n` +
-      `/removefood - Remove a food from the list\n` +
-      `/foodlist - Show all foods in the list\n` +
-      `/help - Show all available commands\n\n` +
-      `You can also tag a user with an amount (e.g. @username 100) to add to their debt.`,
-  );
+  const commonCommands =
+    `/food - Get a random food suggestion\n` +
+    `/newfood - Force a new food suggestion\n` +
+    `/clearfood - Clear current food suggestion\n` +
+    `/addfood - Add a new food to the list\n` +
+    `/removefood - Remove a food from the list\n` +
+    `/foodlist - Show all foods in the list\n` +
+    `/help - Show all available commands`;
+
+  const adminCommands =
+    `/addadmin @username - Add a new admin\n` +
+    `/removeadmin @username - Remove an admin\n` +
+    `/listadmins - List all admins\n` +
+    `/restrict @username - Restrict a user\n` +
+    `/unrestrict @username - Unrestrict a user\n` +
+    `/listrestricted - List all restricted users`;
+
+  let welcomeText = `Hi ${firstName}! I am your Food and Foodlist Bot.\n\n`;
+  welcomeText += `*Commands:*\n${commonCommands}\n\n`;
+
+  if (userIsAdmin) {
+    welcomeText += `👑 *Admin Commands:*\n${adminCommands}\n\n`;
+  }
+
+  await bot.sendMessage(chatId, welcomeText, { parse_mode: "Markdown" });
 });
 
 /**
@@ -73,18 +90,30 @@ bot.onText(/\/help/, async (msg) => {
     if (isRestricted) return;
   }
 
-  await bot.sendMessage(
-    chatId,
-    `Commands:\n` +
-      `/food - Get a random food suggestion\n` +
-      `/newfood - Force a new food suggestion\n` +
-      `/clearfood - Clear current food suggestion\n` +
-      `/addfood - Add a new food to the list\n` +
-      `/removefood - Remove a food from the list\n` +
-      `/foodlist - Show all foods in the list\n` +
-      `/help - Show all available commands\n\n` +
-      `You can also tag a user with an amount (e.g. @username 100) to add to their debt.`,
-  );
+  const commonCommands =
+    `/food - Get a random food suggestion\n` +
+    `/newfood - Force a new food suggestion\n` +
+    `/clearfood - Clear current food suggestion\n` +
+    `/addfood - Add a new food to the list\n` +
+    `/removefood - Remove a food from the list\n` +
+    `/foodlist - Show all foods in the list\n` +
+    `/help - Show all available commands`;
+
+  const adminCommands =
+    `/addadmin @username - Add a new admin\n` +
+    `/removeadmin @username - Remove an admin\n` +
+    `/listadmins - List all admins\n` +
+    `/restrict @username - Restrict a user\n` +
+    `/unrestrict @username - Unrestrict a user\n` +
+    `/listrestricted - List all restricted users`;
+
+  let helpText = `📖 *Available Commands:*\n\n*Food Commands:*\n${commonCommands}`;
+
+  if (isAdmin(user.username)) {
+    helpText += `\n\n👑 *Admin Commands:*\n${adminCommands}`;
+  }
+
+  await bot.sendMessage(chatId, helpText, { parse_mode: "Markdown" });
 });
 
 /**
@@ -289,54 +318,6 @@ bot.onText(/\/foodlist/, async (msg) => {
     }
   } else {
     await bot.sendMessage(chatId, `🍽️ Food List:\n\n${formattedText}`);
-  }
-});
-
-/**
- * Process messages and look for user tags with amounts
- */
-bot.on("message", async (msg) => {
-  // Skip commands
-  if (msg.text && msg.text.startsWith("/")) return;
-
-  if (!msg.text) return;
-
-  const chatId = msg.chat.id;
-  const user = msg.from;
-
-  if (user) {
-    logger.info(
-      `Regular message from user ID: ${user.id}, Username: ${user.username || "none"}, Text: ${msg.text.slice(0, 20)}...`,
-    );
-  }
-
-  // Look for pattern @username 100
-  const pattern = /@(\w+)\s+(-?\d+(?:\.\d+)?)/g;
-  const matches = [...msg.text.matchAll(pattern)];
-
-  if (matches.length === 0) return;
-
-  // Check restriction for debt addition
-  if (user.username && isRestrictedUser(user.username)) {
-    logger.info(`Restricted user ${user.username} tried to add debt`);
-    await bot.sendMessage(chatId, "Bạn cần nạp VIP để thực hiện lệnh này");
-    return;
-  }
-
-  for (const match of matches) {
-    const username = match[1];
-    logger.info(`Found debt message for username: ${username}`);
-
-    try {
-      const amount = parseFloat(match[2]);
-      const newTotal = addDebt(username, amount, DEBT_DB_PATH);
-      await bot.sendMessage(
-        chatId,
-        `Added ${amount.toFixed(2)} to @${username}'s debt. New total: ${newTotal.toFixed(2)}`,
-      );
-    } catch (error) {
-      logger.warn(`Could not convert ${match[2]} to number: ${error.message}`);
-    }
   }
 });
 

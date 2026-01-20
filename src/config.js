@@ -21,14 +21,17 @@ if (!TOKEN) {
 // Path to the food list file
 export const FOOD_LIST_PATH = join(BASE_DIR, "data", "foods.txt");
 
-// Path to the debt database file
-export const DEBT_DB_PATH = join(BASE_DIR, "data", "debts.json");
-
 // Path to the food cache file
 export const FOOD_CACHE_PATH = join(BASE_DIR, "data", "food_cache.json");
+
+// Path to the admin database file
+export const ADMIN_DB_PATH = join(BASE_DIR, "data", "admins.json");
+
+// Path to the restricted users database file
+export const RESTRICTED_USERS_DB_PATH = join(BASE_DIR, "data", "restricted_users.json");
 
 // Cache duration in milliseconds (12 hours)
 export const CACHE_DURATION_MS = 12 * 60 * 60 * 1000;
 
-// List of restricted usernames
-export const RESTRICTED_USERS = ["phuongtung99"];
+// Default admin usernames (without @)
+export const DEFAULT_ADMINS = ["nguyenviet02"];

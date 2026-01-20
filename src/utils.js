@@ -9,10 +9,12 @@ import {
 import { dirname } from "path";
 import {
   FOOD_LIST_PATH,
-  DEBT_DB_PATH,
   FOOD_CACHE_PATH,
   CACHE_DURATION_MS,
   RESTRICTED_USERS,
+  ADMIN_DB_PATH,
+  RESTRICTED_USERS_DB_PATH,
+  DEFAULT_ADMINS,
 } from "./config.js";
 
 /**
@@ -154,85 +156,6 @@ export function getRandomFood(filePath = FOOD_LIST_PATH, forceNew = false) {
   saveFoodCache(food);
 
   return food;
-}
-
-/**
- * Load user debts from JSON file
- * @param {string} filePath - Path to the debt database file
- * @returns {Object} Dictionary mapping usernames to debt amounts
- */
-export function loadDebts(filePath = DEBT_DB_PATH) {
-  if (!existsSync(filePath)) {
-    ensureDirectoryExists(filePath);
-    return {};
-  }
-
-  try {
-    const data = readFileSync(filePath, "utf-8");
-    return JSON.parse(data);
-  } catch (error) {
-    logger.error(`Error loading debts: ${error.message}`);
-    return {};
-  }
-}
-
-/**
- * Save user debts to JSON file
- * @param {Object} debts - Dictionary mapping usernames to debt amounts
- * @param {string} filePath - Path to the debt database file
- */
-export function saveDebts(debts, filePath = DEBT_DB_PATH) {
-  ensureDirectoryExists(filePath);
-  writeFileSync(filePath, JSON.stringify(debts, null, 2), "utf-8");
-}
-
-/**
- * Add debt to a user
- * @param {string} username - Username of the user
- * @param {number} amount - Amount to add to the debt
- * @param {string} filePath - Path to the debt database file
- * @returns {number} New total debt for the user
- */
-export function addDebt(username, amount, filePath = DEBT_DB_PATH) {
-  const debts = loadDebts(filePath);
-
-  // Initialize debt for new users
-  if (!(username in debts)) {
-    debts[username] = 0;
-  }
-
-  // Add to existing debt
-  debts[username] += amount;
-
-  // Save updated debts
-  saveDebts(debts, filePath);
-
-  return debts[username];
-}
-
-/**
- * Get the debt of a user
- * @param {string} username - Username of the user
- * @param {string} filePath - Path to the debt database file
- * @returns {number} Total debt for the user
- */
-export function getDebt(username, filePath = DEBT_DB_PATH) {
-  const debts = loadDebts(filePath);
-  return debts[username] || 0;
-}
-
-/**
- * Clear the debt of a user
- * @param {string} username - Username of the user
- * @param {string} filePath - Path to the debt database file
- */
-export function clearDebt(username, filePath = DEBT_DB_PATH) {
-  const debts = loadDebts(filePath);
-
-  if (username in debts) {
-    debts[username] = 0;
-    saveDebts(debts, filePath);
-  }
 }
 
 /**
@@ -441,11 +364,14 @@ export function isRestrictedUser(username) {
   const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
   const usernameLower = cleanUsername.toLowerCase();
 
+  // Load from database (will initialize with legacy config if needed)
+  const restrictedUsers = loadRestrictedUsersFromDB();
+
   logger.info(
-    `Checking if user '${cleanUsername}' is in restricted list: ${RESTRICTED_USERS.join(", ")}`,
+    `Checking if user '${cleanUsername}' is in restricted list: ${restrictedUsers.join(", ")}`,
   );
 
-  const result = RESTRICTED_USERS.some(
+  const result = restrictedUsers.some(
     (user) => user.toLowerCase() === usernameLower,
   );
   logger.info(
@@ -473,4 +399,227 @@ export async function checkCommandRestriction(bot, chatId, username) {
 
   logger.info(`User ${username} is not restricted`);
   return false;
+}
+
+// ==================== ADMIN MANAGEMENT ====================
+
+/**
+ * Load admin list from JSON file
+ * @param {string} filePath - Path to the admin database file
+ * @returns {string[]} Array of admin usernames
+ */
+export function loadAdmins(filePath = ADMIN_DB_PATH) {
+  if (!existsSync(filePath)) {
+    return [...DEFAULT_ADMINS];
+  }
+
+  try {
+    const data = readFileSync(filePath, "utf-8");
+    const admins = JSON.parse(data);
+    const list = Array.isArray(admins) ? admins : [];
+    // Ensure defaults are always present
+    return Array.from(
+      new Set(
+        [...DEFAULT_ADMINS, ...list].map((u) =>
+          typeof u === "string" ? u.trim() : "",
+        ),
+      ),
+    ).filter(Boolean);
+  } catch (error) {
+    logger.error(`Error loading admins: ${error.message}`);
+    return [...DEFAULT_ADMINS];
+  }
+}
+
+/**
+ * Save admin list to JSON file
+ * @param {string[]} admins - Array of admin usernames
+ * @param {string} filePath - Path to the admin database file
+ */
+export function saveAdmins(admins, filePath = ADMIN_DB_PATH) {
+  ensureDirectoryExists(filePath);
+  writeFileSync(filePath, JSON.stringify(admins, null, 2), "utf-8");
+}
+
+/**
+ * Check if a user is an admin by username
+ * @param {string} username - Telegram username
+ * @returns {boolean} True if the user is an admin
+ */
+export function isAdmin(username) {
+  if (!username) return false;
+
+  const admins = loadAdmins();
+  const cleanUsername = username.startsWith("@")
+    ? username.slice(1).toLowerCase()
+    : username.toLowerCase();
+
+  return admins.some((u) => u.toLowerCase() === cleanUsername);
+}
+
+/**
+ * Add a new admin by username
+ * @param {string} username - Telegram username
+ * @returns {{success: boolean, message: string}} Result object
+ */
+export function addAdmin(username) {
+  if (!username) {
+    return { success: false, message: "Please provide a username" };
+  }
+
+  const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
+  const admins = loadAdmins();
+  const usernameLower = cleanUsername.toLowerCase();
+
+  if (admins.some((u) => u.toLowerCase() === usernameLower)) {
+    return { success: false, message: `@${cleanUsername} is already an admin` };
+  }
+
+  admins.push(cleanUsername);
+  saveAdmins(admins);
+  logger.info(`Added admin: ${cleanUsername}`);
+  return { success: true, message: `👑 Added @${cleanUsername} as admin` };
+}
+
+/**
+ * Remove an admin by username
+ * @param {string} username - Telegram username
+ * @returns {{success: boolean, message: string}} Result object
+ */
+export function removeAdmin(username) {
+  if (!username) {
+    return { success: false, message: "Please provide a username" };
+  }
+
+  const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
+  const admins = loadAdmins();
+  const usernameLower = cleanUsername.toLowerCase();
+  const index = admins.findIndex((u) => u.toLowerCase() === usernameLower);
+
+  if (index === -1) {
+    return { success: false, message: `@${cleanUsername} is not an admin` };
+  }
+
+  admins.splice(index, 1);
+  saveAdmins(admins);
+  logger.info(`Removed admin: ${cleanUsername}`);
+  return { success: true, message: `Removed @${cleanUsername} from admins` };
+}
+
+/**
+ * Get list of all admins
+ * @returns {string[]} Array of admin usernames
+ */
+export function getAllAdmins() {
+  return loadAdmins();
+}
+
+/**
+ * Check admin permission and send error message if not admin
+ * @param {Object} bot - Telegram bot instance
+ * @param {number} chatId - Chat ID to send message to
+ * @param {Object} user - Telegram user object
+ * @returns {boolean} True if the user is NOT an admin (restricted)
+ */
+export async function checkAdminPermission(bot, chatId, user) {
+  const hasPermission = isAdmin(user.username);
+
+  if (!hasPermission) {
+    logger.info(`User ${user.username || user.id} attempted admin command without permission`);
+    await bot.sendMessage(chatId, "⛔ Bạn không có quyền thực hiện lệnh này. Chỉ admin mới được phép.");
+    return true; // Return true to indicate user is restricted
+  }
+
+  return false; // User has permission
+}
+
+// ==================== RESTRICTED USERS MANAGEMENT ====================
+
+/**
+ * Load restricted users from JSON file
+ * @param {string} filePath - Path to the restricted users database file
+ * @returns {string[]} Array of restricted usernames
+ */
+export function loadRestrictedUsersFromDB(filePath = RESTRICTED_USERS_DB_PATH) {
+  if (!existsSync(filePath)) {
+    // Initialize with legacy restricted users from config
+    const initialData = [...RESTRICTED_USERS];
+    saveRestrictedUsersToDB(initialData, filePath);
+    return initialData;
+  }
+
+  try {
+    const data = readFileSync(filePath, "utf-8");
+    return JSON.parse(data);
+  } catch (error) {
+    logger.error(`Error loading restricted users: ${error.message}`);
+    return [...RESTRICTED_USERS];
+  }
+}
+
+/**
+ * Save restricted users to JSON file
+ * @param {string[]} users - Array of restricted usernames
+ * @param {string} filePath - Path to the restricted users database file
+ */
+export function saveRestrictedUsersToDB(users, filePath = RESTRICTED_USERS_DB_PATH) {
+  ensureDirectoryExists(filePath);
+  writeFileSync(filePath, JSON.stringify(users, null, 2), "utf-8");
+}
+
+/**
+ * Add a user to the restricted list
+ * @param {string} username - Username to restrict
+ * @returns {{success: boolean, message: string}} Result object
+ */
+export function addRestrictedUser(username) {
+  if (!username) {
+    return { success: false, message: "Please provide a username" };
+  }
+
+  const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
+  const users = loadRestrictedUsersFromDB();
+  const usernameLower = cleanUsername.toLowerCase();
+
+  if (users.some((u) => u.toLowerCase() === usernameLower)) {
+    return { success: false, message: `@${cleanUsername} is already restricted` };
+  }
+
+  users.push(cleanUsername);
+  saveRestrictedUsersToDB(users);
+  logger.info(`Added restricted user: ${cleanUsername}`);
+  return { success: true, message: `🚫 Đã hạn chế @${cleanUsername}` };
+}
+
+/**
+ * Remove a user from the restricted list
+ * @param {string} username - Username to unrestrict
+ * @returns {{success: boolean, message: string}} Result object
+ */
+export function removeRestrictedUser(username) {
+  if (!username) {
+    return { success: false, message: "Please provide a username" };
+  }
+
+  const cleanUsername = username.startsWith("@") ? username.slice(1) : username;
+  const users = loadRestrictedUsersFromDB();
+  const usernameLower = cleanUsername.toLowerCase();
+  const index = users.findIndex((u) => u.toLowerCase() === usernameLower);
+
+  if (index === -1) {
+    return { success: false, message: `@${cleanUsername} is not in the restricted list` };
+  }
+
+  users.splice(index, 1);
+  saveRestrictedUsersToDB(users);
+  logger.info(`Removed restricted user: ${cleanUsername}`);
+  return { success: true, message: `✅ Đã bỏ hạn chế @${cleanUsername}` };
+}
+
+/**
+ * Get list of all restricted users
+ * @returns {string[]} Array of restricted usernames
+ */
+export function getAllRestrictedUsers() {
+  return loadRestrictedUsersFromDB();
 }
