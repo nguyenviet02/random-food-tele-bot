@@ -70,8 +70,6 @@ npm run dev
 | `/addfood <name>`    | Add a new food to the list                  |
 | `/removefood <name>` | Remove a food from the list                 |
 | `/foodlist`          | Show all foods in the list                  |
-| `/debt <username>`   | Check the debt for a specific user          |
-| `/done <username>`   | Clear the debt for a specific user          |
 
 ### Track Debts
 

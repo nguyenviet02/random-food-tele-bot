@@ -1,5 +1,5 @@
 import TelegramBot from "node-telegram-bot-api";
-import { TOKEN, FOOD_LIST_PATH, DEBT_DB_PATH } from "./config.js";
+import { TOKEN, FOOD_LIST_PATH } from "./config.js";
 import {
   logger,
   getRandomFood,
@@ -8,8 +8,6 @@ import {
   removeFoodFromList,
   getAllFoods,
   addDebt,
-  getDebt,
-  clearDebt,
   isRestrictedUser,
   checkCommandRestriction,
 } from "./utils.js";
@@ -53,8 +51,6 @@ bot.onText(/\/start/, async (msg) => {
       `/addfood - Add a new food to the list\n` +
       `/removefood - Remove a food from the list\n` +
       `/foodlist - Show all foods in the list\n` +
-      `/debt username - Check debt for a user\n` +
-      `/done username - Clear debt for a user\n` +
       `/help - Show all available commands\n\n` +
       `You can also tag a user with an amount (e.g. @username 100) to add to their debt.`,
   );
@@ -86,8 +82,6 @@ bot.onText(/\/help/, async (msg) => {
       `/addfood - Add a new food to the list\n` +
       `/removefood - Remove a food from the list\n` +
       `/foodlist - Show all foods in the list\n` +
-      `/debt username - Check debt for a user\n` +
-      `/done username - Clear debt for a user\n` +
       `/help - Show all available commands\n\n` +
       `You can also tag a user with an amount (e.g. @username 100) to add to their debt.`,
   );
@@ -286,85 +280,6 @@ bot.onText(/\/foodlist/, async (msg) => {
   } else {
     await bot.sendMessage(chatId, `🍽️ Food List:\n\n${formattedText}`);
   }
-});
-
-/**
- * Show debt for a user when the command /debt is issued
- */
-bot.onText(/\/debt(?:\s+(.+))?/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const user = msg.from;
-
-  // Check restriction only if username exists
-  if (user.username) {
-    const isRestricted = await checkCommandRestriction(
-      bot,
-      chatId,
-      user.username,
-    );
-    if (isRestricted) return;
-  }
-
-  let username = match[1];
-
-  if (!username) {
-    await bot.sendMessage(
-      chatId,
-      "Please specify a username, e.g. /debt username",
-    );
-    return;
-  }
-
-  // Remove @ if present
-  if (username.startsWith("@")) {
-    username = username.slice(1);
-  }
-
-  const debt = getDebt(username, DEBT_DB_PATH);
-  await bot.sendMessage(
-    chatId,
-    `@${username} has a debt of ${debt.toFixed(2)}`,
-  );
-});
-
-/**
- * Clear debt for a user when the command /done is issued
- */
-bot.onText(/\/done(?:\s+(.+))?/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const user = msg.from;
-
-  // Check restriction only if username exists
-  if (user.username) {
-    const isRestricted = await checkCommandRestriction(
-      bot,
-      chatId,
-      user.username,
-    );
-    if (isRestricted) return;
-  }
-
-  let username = match[1];
-
-  if (!username) {
-    await bot.sendMessage(
-      chatId,
-      "Please specify a username, e.g. /done username",
-    );
-    return;
-  }
-
-  // Remove @ if present
-  if (username.startsWith("@")) {
-    username = username.slice(1);
-  }
-
-  const oldDebt = getDebt(username, DEBT_DB_PATH);
-  clearDebt(username, DEBT_DB_PATH);
-  await bot.sendMessage(
-    chatId,
-    `Cleared debt of ${oldDebt.toFixed(2)} for @${username}`,
-  );
 });
 
 /**
