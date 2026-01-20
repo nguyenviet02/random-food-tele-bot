@@ -474,6 +474,17 @@ export function addAdmin(username) {
     return { success: false, message: `@${cleanUsername} is already an admin` };
   }
 
+  // Remove from restricted list if present
+  const restricted = loadRestrictedUsersFromDB();
+  const restrictedIndex = restricted.findIndex(
+    (u) => u.toLowerCase() === usernameLower,
+  );
+  if (restrictedIndex !== -1) {
+    restricted.splice(restrictedIndex, 1);
+    saveRestrictedUsersToDB(restricted);
+    logger.info(`Removed @${cleanUsername} from restricted users when adding as admin`);
+  }
+
   admins.push(cleanUsername);
   saveAdmins(admins);
   logger.info(`Added admin: ${cleanUsername}`);
@@ -582,6 +593,15 @@ export function addRestrictedUser(username) {
 
   if (users.some((u) => u.toLowerCase() === usernameLower)) {
     return { success: false, message: `@${cleanUsername} is already restricted` };
+  }
+
+  // If user is an admin, remove from admins before restricting
+  const admins = loadAdmins();
+  const adminIndex = admins.findIndex((u) => u.toLowerCase() === usernameLower);
+  if (adminIndex !== -1) {
+    admins.splice(adminIndex, 1);
+    saveAdmins(admins);
+    logger.info(`Removed @${cleanUsername} from admins when restricting`);
   }
 
   users.push(cleanUsername);
