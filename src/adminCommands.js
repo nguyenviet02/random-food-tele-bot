@@ -7,13 +7,100 @@ import {
   addRestrictedUser,
   removeRestrictedUser,
   getAllRestrictedUsers,
+  clearFoodCache,
+  addFoodToList,
+  removeFoodByIndex,
 } from "./utils.js";
+import { FOOD_LIST_PATH } from "./config.js";
 
 /**
  * Register all admin commands with the bot
  * @param {TelegramBot} bot - Telegram bot instance
  */
 export function registerAdminCommands(bot) {
+  /**
+   * Clear current food suggestion - Admin only
+   */
+  bot.onText(/\/clearfood/, async (msg) => {
+    const chatId = msg.chat.id;
+    const user = msg.from;
+
+    const notAdmin = await checkAdminPermission(bot, chatId, user);
+    if (notAdmin) return;
+
+    clearFoodCache();
+    await bot.sendMessage(
+      chatId,
+      "Food suggestion cleared! Use /food or /newfood to get a new suggestion.",
+    );
+  });
+
+  /**
+   * Add a new food to the list - Admin only
+   */
+  bot.onText(/\/addfood(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const user = msg.from;
+
+    const notAdmin = await checkAdminPermission(bot, chatId, user);
+    if (notAdmin) return;
+
+    const foodItem = match[1];
+
+    if (!foodItem) {
+      await bot.sendMessage(
+        chatId,
+        'Please specify a food to add, e.g. /addfood "Fried Rice"',
+      );
+      return;
+    }
+
+    const success = addFoodToList(foodItem, FOOD_LIST_PATH);
+
+    if (success) {
+      await bot.sendMessage(chatId, `Added "${foodItem}" to the food list!`);
+    } else {
+      await bot.sendMessage(
+        chatId,
+        `"${foodItem}" already exists in the food list or could not be added.`,
+      );
+    }
+  });
+
+  /**
+   * Remove a food from the list - Admin only
+   */
+  bot.onText(/\/removefood(?:\s+(.+))?/, async (msg, match) => {
+    const chatId = msg.chat.id;
+    const user = msg.from;
+
+    const notAdmin = await checkAdminPermission(bot, chatId, user);
+    if (notAdmin) return;
+
+    const indexStr = match[1];
+
+    if (!indexStr) {
+      await bot.sendMessage(
+        chatId,
+        "Please specify the index of the food to remove, e.g. /removefood 5\nUse /foodlist to see the numbered list.",
+      );
+      return;
+    }
+
+    const index = parseInt(indexStr.trim(), 10);
+
+    if (isNaN(index)) {
+      await bot.sendMessage(
+        chatId,
+        "Please provide a valid number, e.g. /removefood 5",
+      );
+      return;
+    }
+
+    const { success, message } = removeFoodByIndex(index, FOOD_LIST_PATH);
+    await bot.sendMessage(chatId, message);
+  });
+
   /**
    * Add a new admin - Admin only
    */

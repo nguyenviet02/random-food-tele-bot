@@ -7,7 +7,6 @@ import {
   addFoodToList,
   removeFoodByIndex,
   getAllFoods,
-  isRestrictedUser,
   checkCommandRestriction,
   isAdmin,
 } from "./utils.js";
@@ -49,13 +48,13 @@ bot.onText(/\/start/, async (msg) => {
   const commonCommands =
     `/food - Get a random food suggestion\n` +
     `/newfood - Force a new food suggestion\n` +
-    `/clearfood - Clear current food suggestion\n` +
-    `/addfood - Add a new food to the list\n` +
-    `/removefood - Remove a food from the list\n` +
     `/foodlist - Show all foods in the list\n` +
     `/help - Show all available commands`;
 
   const adminCommands =
+    `/clearfood - Clear current food suggestion\n` +
+    `/addfood - Add a new food to the list\n` +
+    `/removefood - Remove a food from the list\n` +
     `/addadmin @username - Add a new admin\n` +
     `/removeadmin @username - Remove an admin\n` +
     `/listadmins - List all admins\n` +
@@ -93,13 +92,13 @@ bot.onText(/\/help/, async (msg) => {
   const commonCommands =
     `/food - Get a random food suggestion\n` +
     `/newfood - Force a new food suggestion\n` +
-    `/clearfood - Clear current food suggestion\n` +
-    `/addfood - Add a new food to the list\n` +
-    `/removefood - Remove a food from the list\n` +
     `/foodlist - Show all foods in the list\n` +
     `/help - Show all available commands`;
 
   const adminCommands =
+    `/clearfood - Clear current food suggestion\n` +
+    `/addfood - Add a new food to the list\n` +
+    `/removefood - Remove a food from the list\n` +
     `/addadmin @username - Add a new admin\n` +
     `/removeadmin @username - Remove an admin\n` +
     `/listadmins - List all admins\n` +
@@ -179,110 +178,6 @@ bot.onText(/\/newfood/, async (msg) => {
       "No foods available. Please import a food list first.",
     );
   }
-});
-
-/**
- * Clear the current food suggestion when the command /clearfood is issued
- */
-bot.onText(/\/clearfood/, async (msg) => {
-  const chatId = msg.chat.id;
-  const user = msg.from;
-
-  // Check restriction only if username exists
-  if (user.username) {
-    const isRestricted = await checkCommandRestriction(
-      bot,
-      chatId,
-      user.username,
-    );
-    if (isRestricted) return;
-  }
-
-  clearFoodCache();
-  await bot.sendMessage(
-    chatId,
-    "Food suggestion cleared! Use /food or /newfood to get a new suggestion.",
-  );
-});
-
-/**
- * Add a new food to the food list when the command /addfood is issued
- */
-bot.onText(/\/addfood(?:\s+(.+))?/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const user = msg.from;
-
-  // Check restriction only if username exists
-  if (user.username) {
-    const isRestricted = await checkCommandRestriction(
-      bot,
-      chatId,
-      user.username,
-    );
-    if (isRestricted) return;
-  }
-
-  const foodItem = match[1];
-
-  if (!foodItem) {
-    await bot.sendMessage(
-      chatId,
-      'Please specify a food to add, e.g. /addfood "Fried Rice"',
-    );
-    return;
-  }
-
-  const success = addFoodToList(foodItem, FOOD_LIST_PATH);
-
-  if (success) {
-    await bot.sendMessage(chatId, `Added "${foodItem}" to the food list!`);
-  } else {
-    await bot.sendMessage(
-      chatId,
-      `"${foodItem}" already exists in the food list or could not be added.`,
-    );
-  }
-});
-
-/**
- * Remove a food from the food list when the command /removefood is issued
- */
-bot.onText(/\/removefood(?:\s+(.+))?/, async (msg, match) => {
-  const chatId = msg.chat.id;
-  const user = msg.from;
-
-  // Check restriction only if username exists
-  if (user.username) {
-    const isRestricted = await checkCommandRestriction(
-      bot,
-      chatId,
-      user.username,
-    );
-    if (isRestricted) return;
-  }
-
-  const indexStr = match[1];
-
-  if (!indexStr) {
-    await bot.sendMessage(
-      chatId,
-      "Please specify the index of the food to remove, e.g. /removefood 5\nUse /foodlist to see the numbered list.",
-    );
-    return;
-  }
-
-  const index = parseInt(indexStr.trim(), 10);
-
-  if (isNaN(index)) {
-    await bot.sendMessage(
-      chatId,
-      "Please provide a valid number, e.g. /removefood 5",
-    );
-    return;
-  }
-
-  const { success, message } = removeFoodByIndex(index, FOOD_LIST_PATH);
-  await bot.sendMessage(chatId, message);
 });
 
 /**
